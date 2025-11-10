@@ -1,0 +1,6 @@
+--- CRC Codeword Calculation ---
+Data Stream (M):       1101011011
+Generator (G):         10011 (x^4 + x + 1)
+---
+Calculated Checksum (R): 1110
+Actual Bit String Transmitted (T): 11010110111110
