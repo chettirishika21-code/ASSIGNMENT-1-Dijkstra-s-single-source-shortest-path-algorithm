@@ -1,0 +1,142 @@
+#include <iostream>
+#include <string>
+#include <vector>
+#include <algorithm>
+#include <numeric>
+
+using namespace std;
+
+/**
+ * @brief Performs CRC (Cyclic Redundancy Check) calculation using modulo-2 division.
+ * @param dividend The augmented data or received frame bits (as vector of ints).
+ * @param generator The generator polynomial bits (as vector of ints).
+ * @return vector<int> The resulting Frame Check Sequence (FCS) or remainder.
+ */
+vector<int> calculate_crc(vector<int> dividend, const vector<int>& generator) {
+    int r = generator.size() - 1;
+    int len_g = generator.size();
+    int len_d_aug = dividend.size();
+
+    // Perform Modulo-2 Division (XOR)
+    // The loop iterates over the possible starting positions of the generator
+    for (int i = 0; i <= len_d_aug - len_g; ++i) {
+        
+        // If the current MSB is 1, perform the XOR operation
+        if (dividend[i] == 1) {
+            for (int j = 0; j < len_g; ++j) {
+                // Modulo-2 subtraction is the XOR operation
+                dividend[i + j] = dividend[i + j] ^ generator[j];
+            }
+        }
+    }
+
+    // The remainder is the last 'r' bits of the modified dividend
+    // Using a slice of the vector: from (length - r) to the end
+    vector<int> remainder(dividend.end() - r, dividend.end());
+    
+    return remainder;
+}
+
+/**
+ * @brief Helper function to convert a vector<int> of bits back to a string.
+ */
+string vector_to_string(const vector<int>& bits) {
+    string result = "";
+    for (int bit : bits) {
+        result += to_string(bit);
+    }
+    return result;
+}
+
+int main() {
+    // --- PART 1: ENCODING ---
+    cout << "--- PART 1: CRC ENCODING ---" << endl;
+    
+    const string data_stream_str = "10011101";
+    const string generator_str = "1001"; // G(x) = x^3 + 1
+    int r = generator_str.length() - 1; // r = 3
+
+    // Convert strings to vector<int>
+    vector<int> data_stream(data_stream_str.length());
+    transform(data_stream_str.begin(), data_stream_str.end(), data_stream.begin(), 
+              [](char c) { return c - '0'; });
+
+    vector<int> generator(generator_str.length());
+    transform(generator_str.begin(), generator_str.end(), generator.begin(), 
+              [](char c) { return c - '0'; });
+
+    // 1. Create Augmented Data: Data + r zeros
+    vector<int> augmented_data = data_stream;
+    augmented_data.resize(data_stream.size() + r, 0);
+
+    // 2. Calculate FCS (Remainder)
+    vector<int> fcs_bits = calculate_crc(augmented_data, generator);
+    string fcs_str = vector_to_string(fcs_bits);
+    
+    // 3. Construct Transmitted String
+    string transmitted_string = data_stream_str + fcs_str;
+
+    cout << "Original Data:             " << data_stream_str << endl;
+    cout << "Generator (1001) degree:   r = " << r << endl;
+    cout << "Calculated FCS (Remainder): " << fcs_str << endl;
+    cout << "Actual Transmitted String: " << transmitted_string << " (Length: " << transmitted_string.length() << ")" << endl;
+    
+    cout << "------------------------------------------" << endl;
+
+
+    // --- PART 2: ERROR SIMULATION AND DETECTION ---
+    cout << "--- PART 2: ERROR SIMULATION & DETECTION ---" << endl;
+
+    // 1. Simulate Error: Invert the 3rd bit from the left (index 2)
+    string received_string = transmitted_string;
+    int error_index = 2; 
+    
+    // Invert the bit: '0' becomes '1', '1' becomes '0'
+    received_string[error_index] = (received_string[error_index] == '0' ? '1' : '0');
+    
+    cout << "Simulated Error at index " << error_index << " (3rd bit):" << endl;
+    cout << "Original: 1001... -> Received: 1011..." << endl;
+    cout << "Received String:           " << received_string << endl;
+
+    // 2. Receiver performs CRC check on the received string
+    vector<int> received_bits(received_string.length());
+    transform(received_string.begin(), received_string.end(), received_bits.begin(), 
+              [](char c) { return c - '0'; });
+
+    vector<int> receiver_remainder_bits = calculate_crc(received_bits, generator);
+    string receiver_remainder_str = vector_to_string(receiver_remainder_bits);
+
+    // 3. Check for Error
+    bool error_detected = false;
+    for (int bit : receiver_remainder_bits) {
+        if (bit != 0) {
+            error_detected = true;
+            break;
+        }
+    }
+    
+    cout << "Receiver Remainder:        " << receiver_remainder_str << endl;
+    
+    if (error_detected) {
+        cout << "Error Detection:           ✅ **ERROR DETECTED** (Remainder is non-zero)." << endl;
+    } else {
+        cout << "Error Detection:           ❌ No error detected (Remainder is zero)." << endl;
+    }
+
+    return 0;
+}
+
+[?2004l
+--- PART 1: CRC ENCODING ---
+Original Data:             10011101
+Generator (1001) degree:   r = 3
+Calculated FCS (Remainder): 100
+Actual Transmitted String: 10011101100 (Length: 11)
+------------------------------------------
+--- PART 2: ERROR SIMULATION & DETECTION ---
+Simulated Error at index 2 (3rd bit):
+Original: 1001... -> Received: 1011...
+Received String:           10111101100
+Receiver Remainder:        100
+Error Detection:           ✅ **ERROR DETECTED** (Remainder is non-zero).
+[?2004h

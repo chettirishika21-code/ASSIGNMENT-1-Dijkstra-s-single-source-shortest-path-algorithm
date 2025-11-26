@@ -1,0 +1,87 @@
+#include <iostream>
+#include <string>
+#include <vector>
+#include <algorithm>
+
+using namespace std;
+
+/**
+ * @brief Performs CRC (Cyclic Redundancy Check) calculation using modulo-2 division.
+ * @param data_stream The original data bit string.
+ * @param generator The generator polynomial bit string.
+ * @return string The resulting Frame Check Sequence (FCS) or remainder.
+ */
+string calculate_crc(const string& data_stream, const string& generator) {
+    int r = generator.length() - 1;
+    // 1. Append r zeros to the data to form the augmented data
+    string augmented_data = data_stream + string(r, '0');
+    int len_g = generator.length();
+
+    // 2. Convert strings to vector of integers (0 and 1) correctly.
+    // Use a lambda function in the constructor to map char c to int (c - '0').
+    vector<int> current_dividend(augmented_data.length());
+    transform(augmented_data.begin(), augmented_data.end(), current_dividend.begin(), 
+              [](char c) { return c - '0'; });
+
+    vector<int> generator_vec(generator.length());
+    transform(generator.begin(), generator.end(), generator_vec.begin(), 
+              [](char c) { return c - '0'; });
+    
+    // 3. Perform Modulo-2 Division (XOR)
+    // The loop iterates over the possible starting positions of the generator
+    for (int i = 0; i <= augmented_data.length() - len_g; ++i) {
+        
+        // If the current MSB is 1, perform the XOR operation
+        if (current_dividend[i] == 1) {
+            for (int j = 0; j < len_g; ++j) {
+                // Modulo-2 subtraction is the XOR operation
+                current_dividend[i + j] = current_dividend[i + j] ^ generator_vec[j];
+            }
+        }
+    }
+
+    // 4. Extract the Remainder (FCS)
+    // The remainder is the last 'r' bits of the modified augmented data
+    string fcs = "";
+    for (int i = augmented_data.length() - r; i < augmented_data.length(); ++i) {
+        fcs += to_string(current_dividend[i]);
+    }
+
+    return fcs;
+}
+
+int main() {
+    // Input Data
+    const string data_stream = "1101011011";
+    
+    // Generator G(x) = x^4 + x + 1, which corresponds to 10011
+    const string generator = "10011";
+    int r = generator.length() - 1; // r = 4
+
+    cout << "--- CRC Encoding Simulation ---" << endl;
+    cout << "Original Data Stream: " << data_stream << endl;
+    cout << "Generator G(x) bits:  " << generator << " (r=" << r << ")" << endl;
+    cout << "-------------------------------" << endl;
+
+    // Calculate the Frame Check Sequence (FCS)
+    string fcs = calculate_crc(data_stream, generator);
+
+    // Construct the Transmitted Bit String
+    string transmitted_string = data_stream + fcs;
+
+    // Output Results
+    cout << "Calculated FCS (Remainder): " << fcs << endl;
+    cout << "Actual Bit String Transmitted: " << transmitted_string << endl;
+
+    return 0;
+}
+
+OUTPUT:
+--- CRC Encoding Simulation ---
+Original Data Stream: 1101011011
+Generator G(x) bits:  10011 (r=4)
+-------------------------------
+Calculated FCS (Remainder): 1110
+Actual Bit String Transmitted: 11010110111110
+[?2004h
+
